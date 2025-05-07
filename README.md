@@ -4,6 +4,19 @@ A Model Context Protocol (MCP) server implementation that provides access to JIR
 
 ℹ️ There is a separate MCP server [for Confluence](https://github.com/cosmix/confluence-mcp)
 
+---
+
+## Jira Cloud & Jira Server (Data Center) Support
+
+This MCP server supports both **Jira Cloud** and **Jira Server (Data Center)** instances. You can select which type to use by setting the `JIRA_TYPE` environment variable:
+
+- `cloud` (default): For Jira Cloud (Atlassian-hosted)
+- `server`: For Jira Server/Data Center (self-hosted)
+
+The server will automatically use the correct API version and authentication method for the selected type.
+
+---
+
 ## Features
 
 - Search JIRA issues using JQL (maximum 50 results per request)
@@ -15,6 +28,7 @@ A Model Context Protocol (MCP) server implementation that provides access to JIR
 - Track issue relationships (mentions, links, parent/child, epics)
 - Clean and transform rich JIRA content for AI context efficiency
 - Support for file attachments with secure multipart upload handling
+- **Supports both Jira Cloud and Jira Server (Data Center) APIs**
 
 ## Prerequisites
 
@@ -27,6 +41,7 @@ A Model Context Protocol (MCP) server implementation that provides access to JIR
 JIRA_API_TOKEN=your_api_token
 JIRA_BASE_URL=your_jira_instance_url  # e.g., https://your-domain.atlassian.net
 JIRA_USER_EMAIL=your_email
+JIRA_TYPE=cloud   # or 'server' for Jira Server/Data Center (optional, defaults to 'cloud')
 ```
 
 ## Installation & Setup
@@ -75,7 +90,8 @@ Add the following configuration under the `mcpServers` object:
       "env": {
         "JIRA_API_TOKEN": "your_api_token",
         "JIRA_BASE_URL": "your_jira_instance_url",
-        "JIRA_USER_EMAIL": "your_email"
+        "JIRA_USER_EMAIL": "your_email",
+        "JIRA_TYPE": "cloud"
       }
     }
   }

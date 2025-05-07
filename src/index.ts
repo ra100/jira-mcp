@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { Server } from "@modelcontextprotocol/sdk/server/index.js"; // Use base Server
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
   CallToolRequestSchema,
@@ -8,18 +8,23 @@ import {
   McpError,
 } from "@modelcontextprotocol/sdk/types.js";
 import { JiraApiService } from "./services/jira-api.js";
+import { JiraServerApiService } from "./services/jira-server-api.js";
 
 declare module "bun" {
   interface Env {
     JIRA_API_TOKEN: string;
     JIRA_BASE_URL: string;
     JIRA_USER_EMAIL: string;
+    JIRA_TYPE?: "cloud" | "server";
   }
 }
 
 const JIRA_API_TOKEN = process.env.JIRA_API_TOKEN;
 const JIRA_BASE_URL = process.env.JIRA_BASE_URL;
 const JIRA_USER_EMAIL = process.env.JIRA_USER_EMAIL;
+const JIRA_TYPE = (process.env.JIRA_TYPE === "server" ? "server" : "cloud") as
+  | "cloud"
+  | "server";
 
 if (!JIRA_API_TOKEN || !JIRA_BASE_URL || !JIRA_USER_EMAIL) {
   throw new Error(
@@ -44,15 +49,23 @@ class JiraServer {
       },
     );
 
-    this.jiraApi = new JiraApiService(
-      JIRA_BASE_URL,
-      JIRA_USER_EMAIL,
-      JIRA_API_TOKEN,
-    );
+    if (JIRA_TYPE === "server") {
+      this.jiraApi = new JiraServerApiService(
+        JIRA_BASE_URL,
+        JIRA_USER_EMAIL,
+        JIRA_API_TOKEN,
+      );
+    } else {
+      this.jiraApi = new JiraApiService(
+        JIRA_BASE_URL,
+        JIRA_USER_EMAIL,
+        JIRA_API_TOKEN,
+      );
+    }
 
     this.setupToolHandlers();
 
-    this.server.onerror = (error) => console.error("[MCP Error]", error);
+    this.server.onerror = (error) => {};
     process.on("SIGINT", async () => {
       await this.server.close();
       process.exit(0);
@@ -476,9 +489,9 @@ class JiraServer {
   async run() {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
-    console.error("JIRA MCP server running on stdio");
+    // JIRA MCP server running on stdio
   }
 }
 
 const server = new JiraServer();
-server.run().catch(console.error);
+server.run().catch(() => {});

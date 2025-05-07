@@ -10,15 +10,14 @@ export default defineConfig({
       fileName: "index",
     },
     rollupOptions: {
-      // Match external array from linear-mcp
       external: [
         "@modelcontextprotocol/sdk/server/index.js",
         "@modelcontextprotocol/sdk/server/stdio.js",
         "@modelcontextprotocol/sdk/types.js",
       ],
     },
-    target: "node18", // Match linear-mcp
-    outDir: "build", // Changed output directory
+    target: "node18",
+    outDir: "build",
     sourcemap: true,
   },
   plugins: [dts()],

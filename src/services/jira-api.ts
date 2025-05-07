@@ -1,15 +1,15 @@
 import {
-  SearchIssuesResponse,
-  CleanJiraIssue,
-  CleanComment,
-  AdfDoc,
-  JiraCommentResponse,
   AddCommentResponse,
+  AdfDoc,
+  CleanComment,
+  CleanJiraIssue,
+  JiraCommentResponse,
+  SearchIssuesResponse,
 } from "../types/jira.js";
 
 export class JiraApiService {
-  private baseUrl: string;
-  private headers: Headers;
+  protected baseUrl: string;
+  protected headers: Headers;
 
   constructor(baseUrl: string, email: string, apiToken: string) {
     this.baseUrl = baseUrl;
@@ -21,17 +21,16 @@ export class JiraApiService {
     });
   }
 
-  private async handleFetchError(
+  protected async handleFetchError(
     response: Response,
-    url?: string,
+    url?: string
   ): Promise<never> {
-    // First, check for network errors
     if (!response.ok) {
-      let message = response.statusText; // Default to status text
+      let message = response.statusText;
       let errorData = {};
       try {
         errorData = await response.json();
-        // Check for common JIRA error message structures
+
         if (
           Array.isArray((errorData as any).errorMessages) &&
           (errorData as any).errorMessages.length > 0
@@ -43,20 +42,18 @@ export class JiraApiService {
           message = (errorData as any).errorMessage;
         }
       } catch (e) {
-        // Ignore JSON parsing errors if the body is not JSON or empty
         console.warn("Could not parse JIRA error response body as JSON.");
       }
 
       const details = JSON.stringify(errorData, null, 2);
       console.error("JIRA API Error Details:", details);
-      // Ensure message is not empty before including it
+
       const errorMessage = message ? `: ${message}` : "";
       throw new Error(
-        `JIRA API Error${errorMessage} (Status: ${response.status})`,
+        `JIRA API Error${errorMessage} (Status: ${response.status})`
       );
     }
-    // This line should ideally not be reached if response.ok is true,
-    // but kept for safety in case of unexpected fetch behavior.
+
     throw new Error("Unknown error occurred during fetch operation.");
   }
 
@@ -64,16 +61,14 @@ export class JiraApiService {
    * Extracts issue mentions from Atlassian document content
    * Looks for nodes that were auto-converted to issue links
    */
-  private extractIssueMentions(
+  protected extractIssueMentions(
     content: any[],
     source: "description" | "comment",
-    commentId?: string,
+    commentId?: string
   ): CleanJiraIssue["relatedIssues"] {
     const mentions: NonNullable<CleanJiraIssue["relatedIssues"]> = [];
 
-    // Recursively process content nodes
     const processNode = (node: any) => {
-      // Check for inlineCard nodes (auto-converted issue mentions)
       if (node.type === "inlineCard" && node.attrs?.url) {
         const match = node.attrs.url.match(/\/browse\/([A-Z]+-\d+)/);
         if (match) {
@@ -86,7 +81,6 @@ export class JiraApiService {
         }
       }
 
-      // Check for text nodes that might contain issue keys
       if (node.type === "text" && node.text) {
         const matches = node.text.match(/[A-Z]+-\d+/g) || [];
         matches.forEach((key: string) => {
@@ -99,17 +93,16 @@ export class JiraApiService {
         });
       }
 
-      // Process child nodes
       if (node.content) {
         node.content.forEach(processNode);
       }
     };
 
     content.forEach(processNode);
-    return [...new Map(mentions.map((m) => [m.key, m])).values()]; // Remove duplicates
+    return [...new Map(mentions.map((m) => [m.key, m])).values()];
   }
 
-  private cleanComment(comment: {
+  protected cleanComment(comment: {
     id: string;
     body?: {
       content?: any[];
@@ -140,7 +133,7 @@ export class JiraApiService {
   /**
    * Recursively extracts text content from Atlassian Document Format nodes
    */
-  private extractTextContent(content: any[]): string {
+  protected extractTextContent(content: any[]): string {
     if (!Array.isArray(content)) return "";
 
     return content
@@ -156,7 +149,7 @@ export class JiraApiService {
       .join("");
   }
 
-  private cleanIssue(issue: any): CleanJiraIssue {
+  protected cleanIssue(issue: any): CleanJiraIssue {
     const description = issue.fields?.description?.content
       ? this.extractTextContent(issue.fields.description.content)
       : "";
@@ -172,18 +165,16 @@ export class JiraApiService {
       relatedIssues: [],
     };
 
-    // Extract mentions from description
     if (issue.fields?.description?.content) {
       const mentions = this.extractIssueMentions(
         issue.fields.description.content,
-        "description",
+        "description"
       );
       if (mentions.length > 0) {
         cleanedIssue.relatedIssues = mentions;
       }
     }
 
-    // Add formal issue links if they exist
     if (issue.fields?.issuelinks?.length > 0) {
       const links = issue.fields.issuelinks.map((link: any) => {
         const linkedIssue = link.inwardIssue || link.outwardIssue;
@@ -203,7 +194,6 @@ export class JiraApiService {
       ];
     }
 
-    // Add parent if exists
     if (issue.fields?.parent) {
       cleanedIssue.parent = {
         id: issue.fields.parent.id,
@@ -212,17 +202,14 @@ export class JiraApiService {
       };
     }
 
-    // Add epic link if exists
     if (issue.fields?.customfield_10014) {
-      // Epic Link field
       cleanedIssue.epicLink = {
         id: issue.fields.customfield_10014,
         key: issue.fields.customfield_10014,
-        summary: undefined, // We'll need a separate request to get epic details
+        summary: undefined,
       };
     }
 
-    // Add subtasks if exist
     if (issue.fields?.subtasks?.length > 0) {
       cleanedIssue.children = issue.fields.subtasks.map((subtask: any) => ({
         id: subtask.id,
@@ -234,7 +221,7 @@ export class JiraApiService {
     return cleanedIssue;
   }
 
-  private async fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
+  protected async fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
     const response = await fetch(this.baseUrl + url, {
       ...init,
       headers: this.headers,
@@ -261,8 +248,8 @@ export class JiraApiService {
         "updated",
         "parent",
         "subtasks",
-        "customfield_10014", // Epic Link field
-        "issuelinks", // For formal issue links
+        "customfield_10014",
+        "issuelinks",
       ].join(","),
       expand: "names,renderedFields",
     });
@@ -289,28 +276,26 @@ export class JiraApiService {
         "updated",
         "parent",
         "subtasks",
-        "customfield_10014", // Epic Link field
-        "issuelinks", // For formal issue links
+        "customfield_10014",
+        "issuelinks",
       ].join(","),
       expand: "names,renderedFields",
     });
 
     const data = await this.fetchJson<any>(`/rest/api/3/search?${params}`);
 
-    // Get comments for each child issue
     const issuesWithComments = await Promise.all(
       data.issues.map(async (issue: any) => {
         const commentsData = await this.fetchJson<any>(
-          `/rest/api/3/issue/${issue.key}/comment`,
+          `/rest/api/3/issue/${issue.key}/comment`
         );
         const cleanedIssue = this.cleanIssue(issue);
         const comments = commentsData.comments.map((comment: any) =>
-          this.cleanComment(comment),
+          this.cleanComment(comment)
         );
 
-        // Add comment mentions to related issues
         const commentMentions = comments.flatMap(
-          (comment: CleanComment) => comment.mentions,
+          (comment: CleanComment) => comment.mentions
         );
         cleanedIssue.relatedIssues = [
           ...cleanedIssue.relatedIssues,
@@ -319,7 +304,7 @@ export class JiraApiService {
 
         cleanedIssue.comments = comments;
         return cleanedIssue;
-      }),
+      })
     );
 
     return issuesWithComments;
@@ -337,8 +322,8 @@ export class JiraApiService {
         "updated",
         "parent",
         "subtasks",
-        "customfield_10014", // Epic Link field
-        "issuelinks", // For formal issue links
+        "customfield_10014",
+        "issuelinks",
       ].join(","),
       expand: "names,renderedFields",
     });
@@ -350,34 +335,29 @@ export class JiraApiService {
         this.fetchJson<any>(`/rest/api/3/issue/${issueId}/comment`),
       ]);
     } catch (error: any) {
-      // Check if the error is the specific 404 for the main issue fetch
       if (error instanceof Error && error.message.includes("(Status: 404)")) {
-        // Check if the error message contains the generic 404 status text we expect from handleFetchError
-        // This indicates the primary issue fetch failed with 404
         throw new Error(`Issue not found: ${issueId}`);
       }
-      // Re-throw other errors
+
       throw error;
     }
 
     const issue = this.cleanIssue(issueData);
     const comments = commentsData.comments.map((comment: any) =>
-      this.cleanComment(comment),
+      this.cleanComment(comment)
     );
 
-    // Add comment mentions to related issues
     const commentMentions = comments.flatMap(
-      (comment: CleanComment) => comment.mentions,
+      (comment: CleanComment) => comment.mentions
     );
     issue.relatedIssues = [...issue.relatedIssues, ...commentMentions];
 
     issue.comments = comments;
 
-    // If there's an epic link, fetch its details
     if (issue.epicLink) {
       try {
         const epicData = await this.fetchJson<any>(
-          `/rest/api/3/issue/${issue.epicLink.key}?fields=summary`,
+          `/rest/api/3/issue/${issue.epicLink.key}?fields=summary`
         );
         issue.epicLink.summary = epicData.fields?.summary;
       } catch (error) {
@@ -393,7 +373,7 @@ export class JiraApiService {
     issueType: string,
     summary: string,
     description?: string,
-    fields?: Record<string, any>,
+    fields?: Record<string, any>
   ): Promise<{ id: string; key: string }> {
     const payload = {
       fields: {
@@ -417,7 +397,7 @@ export class JiraApiService {
 
   async updateIssue(
     issueKey: string,
-    fields: Record<string, any>,
+    fields: Record<string, any>
   ): Promise<void> {
     await this.fetchJson(`/rest/api/3/issue/${issueKey}`, {
       method: "PUT",
@@ -426,10 +406,10 @@ export class JiraApiService {
   }
 
   async getTransitions(
-    issueKey: string,
+    issueKey: string
   ): Promise<Array<{ id: string; name: string; to: { name: string } }>> {
     const data = await this.fetchJson<any>(
-      `/rest/api/3/issue/${issueKey}/transitions`,
+      `/rest/api/3/issue/${issueKey}/transitions`
     );
     return data.transitions;
   }
@@ -437,7 +417,7 @@ export class JiraApiService {
   async transitionIssue(
     issueKey: string,
     transitionId: string,
-    comment?: string,
+    comment?: string
   ): Promise<void> {
     const payload: any = {
       transition: { id: transitionId },
@@ -478,14 +458,14 @@ export class JiraApiService {
   async addAttachment(
     issueKey: string,
     file: Buffer,
-    filename: string,
+    filename: string
   ): Promise<{ id: string; filename: string }> {
     const formData = new FormData();
     formData.append("file", new Blob([file]), filename);
 
     const headers = new Headers(this.headers);
-    headers.delete("Content-Type"); // Let the browser set the correct content type for FormData
-    headers.set("X-Atlassian-Token", "no-check"); // Required for file uploads
+    headers.delete("Content-Type");
+    headers.set("X-Atlassian-Token", "no-check");
 
     const response = await fetch(
       `${this.baseUrl}/rest/api/3/issue/${issueKey}/attachments`,
@@ -493,7 +473,7 @@ export class JiraApiService {
         method: "POST",
         headers,
         body: formData,
-      },
+      }
     );
 
     if (!response.ok) {
@@ -501,7 +481,7 @@ export class JiraApiService {
     }
 
     const data = await response.json();
-    // JIRA returns an array with one item for single file upload
+
     const attachment = data[0];
     return {
       id: attachment.id,
@@ -535,13 +515,12 @@ export class JiraApiService {
    */
   async addCommentToIssue(
     issueIdOrKey: string,
-    body: string,
+    body: string
   ): Promise<AddCommentResponse> {
     const adfBody = this.createAdfFromBody(body);
 
     const payload = {
       body: adfBody,
-      // visibility can be added here if needed
     };
 
     const response = await this.fetchJson<JiraCommentResponse>(
@@ -549,16 +528,15 @@ export class JiraApiService {
       {
         method: "POST",
         body: JSON.stringify(payload),
-      },
+      }
     );
 
-    // Clean the response for the MCP tool
     return {
       id: response.id,
       author: response.author.displayName,
       created: response.created,
       updated: response.updated,
-      body: this.extractTextContent(response.body.content), // Extract plain text from returned ADF
+      body: this.extractTextContent(response.body.content),
     };
   }
 }
