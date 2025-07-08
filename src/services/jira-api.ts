@@ -149,10 +149,68 @@ export class JiraApiService {
       .join("");
   }
 
+  /**
+   * Attempts to extract text from unknown description formats
+   */
+  protected extractTextFromUnknownFormat(description: any): string {
+    if (typeof description === "string") {
+      return description;
+    }
+
+    if (description && typeof description === "object") {
+      // Try to find text in common properties
+      if (description.text) {
+        return description.text;
+      }
+      if (description.value) {
+        return description.value;
+      }
+      if (description.content && Array.isArray(description.content)) {
+        return this.extractTextContent(description.content);
+      }
+
+      // If it's an object, try to find any string values
+      const textValues = Object.values(description)
+        .filter((value) => typeof value === "string")
+        .join(" ");
+
+      if (textValues) {
+        return textValues;
+      }
+    }
+
+    return "";
+  }
+
   protected cleanIssue(issue: any): CleanJiraIssue {
-    const description = issue.fields?.description?.content
-      ? this.extractTextContent(issue.fields.description.content)
-      : "";
+    console.log("Raw issue data:", JSON.stringify(issue, null, 2));
+
+    // Handle different description formats
+    let description = "";
+    if (issue.fields?.description) {
+      if (typeof issue.fields.description === "string") {
+        // Plain text format
+        description = issue.fields.description;
+      } else if (issue.fields.description.content) {
+        // ADF (Atlassian Document Format) format
+        description = this.extractTextContent(issue.fields.description.content);
+      } else if (
+        issue.fields.description.type === "doc" &&
+        issue.fields.description.content
+      ) {
+        // Alternative ADF format structure
+        description = this.extractTextContent(issue.fields.description.content);
+      } else {
+        // Try to extract text from any other structured format
+        console.warn(
+          "Unknown description format:",
+          JSON.stringify(issue.fields.description, null, 2),
+        );
+        description = this.extractTextFromUnknownFormat(
+          issue.fields.description,
+        );
+      }
+    }
 
     const cleanedIssue: CleanJiraIssue = {
       id: issue.id,
