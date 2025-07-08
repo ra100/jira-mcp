@@ -40,7 +40,7 @@ The server will automatically use the correct API version and authentication met
 ```bash
 JIRA_API_TOKEN=your_api_token
 JIRA_BASE_URL=your_jira_instance_url  # e.g., https://your-domain.atlassian.net
-JIRA_USER_EMAIL=your_email
+JIRA_USER_EMAIL=your_email # leave empty to use JIRA_API_TOKEN as Bearer token
 JIRA_TYPE=cloud   # or 'server' for Jira Server/Data Center (optional, defaults to 'cloud')
 ```
 

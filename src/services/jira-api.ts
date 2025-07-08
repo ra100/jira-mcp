@@ -11,11 +11,15 @@ export class JiraApiService {
   protected baseUrl: string;
   protected headers: Headers;
 
-  constructor(baseUrl: string, email: string, apiToken: string) {
+  constructor(baseUrl: string, apiToken: string, email?: string) {
     this.baseUrl = baseUrl;
-    const auth = Buffer.from(`${email}:${apiToken}`).toString("base64");
+    let authorization = `Bearer ${apiToken}`;
+    if (email) {
+      const auth = Buffer.from(`${email}:${apiToken}`).toString("base64");
+      authorization = `Basic ${auth}`;
+    }
     this.headers = new Headers({
-      Authorization: `Basic ${auth}`,
+      Authorization: authorization,
       Accept: "application/json",
       "Content-Type": "application/json",
     });

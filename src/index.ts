@@ -26,9 +26,9 @@ const JIRA_TYPE = (process.env.JIRA_TYPE === "server" ? "server" : "cloud") as
   | "cloud"
   | "server";
 
-if (!JIRA_API_TOKEN || !JIRA_BASE_URL || !JIRA_USER_EMAIL) {
+if (!JIRA_API_TOKEN || !JIRA_BASE_URL) {
   throw new Error(
-    "JIRA_API_TOKEN, JIRA_USER_EMAIL and JIRA_BASE_URL environment variables are required",
+    "JIRA_API_TOKEN and JIRA_BASE_URL environment variables are required",
   );
 }
 
@@ -52,14 +52,14 @@ class JiraServer {
     if (JIRA_TYPE === "server") {
       this.jiraApi = new JiraServerApiService(
         JIRA_BASE_URL,
-        JIRA_USER_EMAIL,
         JIRA_API_TOKEN,
+        JIRA_USER_EMAIL,
       );
     } else {
       this.jiraApi = new JiraApiService(
         JIRA_BASE_URL,
-        JIRA_USER_EMAIL,
         JIRA_API_TOKEN,
+        JIRA_USER_EMAIL,
       );
     }
 
